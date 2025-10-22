@@ -1,1 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zombie Loot Calculator — Mobile with Target Fill</title>
+<meta name="theme-color" content="#0f172a">
+<style>
+  :root{
+    --bg:#0f172a; --card:#0b1222; --muted:#9aa4b2; --txt:#eef2f6;
+    --line:#1f2a3a; --ok:#22c55e; --bad:#ef4444
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:linear-gradient(180deg,#0b1022,#0f172a);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  header{padding:18px 14px;text-align:center}
+  header h1{margin:0 0 6px;font-size:20px}
+  header p{margin:0;color:var(--muted);font-size:13px}
+  .wrap{max-width:780px;margin:0 auto;padding:12px}
+  .card{background:rgba(11,18,34,.95);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.35);margin-bottom:12px}
+  .inner{padding:14px}
+  h2{margin:0 0 10px;font-size:16px}
+  label{display:block;margin:8px 0 6px;font-size:14px;color:#cbd5e1}
+  input[type=number]{width:100%;padding:14px 12px;border-radius:12px;border:1px solid var(--line);background:#081021;color:var(--txt);font-size:16px}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .grid{display:grid;gap:10px}
+  @media(min-width:560px){.targets{grid-template-columns:repeat(2,1fr)}}
+  .muted{color:var(--muted);font-size:12px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .seg input{display:none}
+  .seg label{flex:1;text-align:center;padding:10px;font-size:14px;cursor:pointer;background:#0b1425}
+  .seg input:checked + label{background:#1f2937}
+  .zlist{display:grid;gap:10px}
+  .zcard{border:1px solid var(--line);border-radius:14px;padding:12px;background:#091125}
+  .zhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+  .tag{font-size:12px;background:#0ea5e9;color:#fff;padding:4px 8px;border-radius:999px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(min-width:520px){.row{grid-template-columns:repeat(4,1fr)}}
+  .box{background:#081021;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+  .btn{cursor:pointer;padding:14px;border-radius:12px;border:1px solid var(--line);background:#16a34a;color:#fff;font-size:16px}
+  .btn.ghost{background:#0b1222}
+  table{width:100%;border-collapse:separate;border-spacing:0 6px}
+  th,td{text-align:center;padding:8px 6px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  thead th{font-size:12px;color:#a5b4fc}
+  tfoot th{font-weight:700}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  .sticky{position:sticky;bottom:0;background:rgba(11,18,34,.95);backdrop-filter:blur(8px);border-top:1px solid var(--line)}
+  .sticky .inner{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .mini{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Zombie Loot Calculator — Mobile</h1>
+  <p>For each zombie choose a mode — <b>Participant</b> or <b>Rally (Initiator) ×2</b> — set a quantity, and see per-type details, totals, and a target autofill helper.</p>
+</header>
 
+<main class="wrap">
+  <!-- Targets -->
+  <section class="card">
+    <div class="inner">
+      <h2>🎯 Resource Targets (optional)</h2>
+      <div class="grid targets">
+        <div><label>Gold</label><input id="tGold" type="number" inputmode="numeric" placeholder="e.g., 10000000"></div>
+        <div><label>Iron</label><input id="tIron" type="number" inputmode="numeric" placeholder="500000"></div>
+        <div><label>Bread</label><input id="tBread" type="number" inputmode="numeric" placeholder="500000"></div>
+        <div><label>Medals</label><input id="tMedals" type="number" inputmode="numeric" placeholder="200"></div>
+        <div><label>XP</label><input id="tXP" type="number" inputmode="numeric" placeholder="1500000"></div>
+      </div>
+      <p class="muted" style="margin-top:6px">Target comparison appears below and in the sticky footer.</p>
+    </div>
+  </section>
+
+  <!-- Zombies list: per-zombie quantity + mode -->
+  <section class="card">
+    <div class="inner">
+      <h2>🧟 Zombies — Mode & Quantity</h2>
+      <div class="zlist" id="zlist"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn ghost" id="allParticipant" type="button">Set All → Participant</button>
+        <button class="btn ghost" id="allRally" type="button">Set All Boss → Rally ×2</button>
+        <button class="btn ghost" id="clearAll" type="button">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Per-row breakdown -->
+  <section class="card">
+    <div class="inner">
+      <h2>🔎 Breakdown by Type</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th><th>Mode</th><th>Qty</th>
+            <th>Gold</th><th>Iron</th><th>Bread</th><th>Medals</th><th>XP</th><th>⚡</th>
+          </tr>
+        </thead>
+        <tbody id="detailBody"></tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3">Total</th>
+            <th id="dGold">0</th><th id="dIron">0</th><th id="dBread">0</th><th id="dMedals">0</th><th id="dXP">0</th><th id="dEnergy">0</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- Fill to target -->
+  <section class="card">
+    <div class="inner">
+      <h2>🎯➕ Fill to Target</h2>
+      <div class="grid" style="grid-template-columns:1fr;gap:8px">
+        <div>
+          <label>Select Filler Zombie</label>
+          <select id="fillerSelect"></select>
+        </div>
+        <div>
+          <label>Filler Mode</label>
+          <div class="seg" style="max-width:320px">
+            <input id="f-p" name="fmode" type="radio" value="participant" checked>
+            <label for="f-p">Participant</label>
+            <input id="f-r" name="fmode" type="radio" value="rally">
+            <label for="f-r" id="fRallyLabel">Rally (Initiator) ×2</label>
+          </div>
+          <div class="mini" id="fillerNote">Default: Invading Lv.10 (Participant).</div>
+        </div>
+        <div>
+          <button class="btn" id="calcFill" type="button">Calculate Needed</button>
+          <button class="btn ghost" id="applyFill" type="button" style="margin-inline-start:8px">Add to Plan</button>
+        </div>
+        <div id="fillResult" class="muted"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Sticky summary -->
+<div class="sticky">
+  <div class="inner wrap" style="padding:10px 14px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="box">Gold: <b id="sumGold">0</b></div>
+      <div class="box">Iron: <b id="sumIron">0</b></div>
+      <div class="box">Bread: <b id="sumBread">0</b></div>
+      <div class="box">Medals: <b id="sumMedals">0</b></div>
+      <div class="box">XP: <b id="sumXP">0</b></div>
+      <div class="box">⚡: <b id="sumEnergy">0</b></div>
+    </div>
+    <div class="muted" id="cmpLine">No target set</div>
+  </div>
+</div>
+
+<script>
+/* ===== Base data (Participant/base mode) =====
+   Invading 10 costs ⚡10 per unit in Participant. Boss costs ⚡0 in Participant.
+   Rally (Initiator) is ×2 rewards and always ⚡20 per kill. */
+const Z = [
+  {label:'Boss Lv. 5',  type:'Boss', level:5,  energy:0,  medals:40, iron:331000, bread:331000, gold:421000, xp:880000},
+  {label:'Boss Lv.10',  type:'Boss', level:10, energy:0,  medals:40, iron:351000, bread:351000, gold:441000, xp:925000},
+  {label:'Boss Lv.15',  type:'Boss', level:15, energy:0,  medals:40, iron:361000, bread:361000, gold:461000, xp:972000},
+  {label:'Boss Lv.20',  type:'Boss', level:20, energy:0,  medals:40, iron:381000, bread:381000, gold:481000, xp:1000000},
+  {label:'Boss Lv.25',  type:'Boss', level:25, energy:0,  medals:40, iron:396000, bread:396000, gold:501000, xp:1050000},
+  {label:'Boss Lv.30',  type:'Boss', level:30, energy:0,  medals:40, iron:411000, bread:411000, gold:522000, xp:1100000},
+  {label:'Boss Lv.35',  type:'Boss', level:35, energy:0,  medals:40, iron:431000, bread:431000, gold:542000, xp:1200000},
+  {label:'Boss Lv.40',  type:'Boss', level:40, energy:0,  medals:40, iron:441000, bread:441000, gold:562000, xp:1300000},
+  {label:'Boss Lv.45',  type:'Boss', level:45, energy:0,  medals:40, iron:461000, bread:461000, gold:582000, xp:1400000},
+  {label:'Boss Lv.50',  type:'Boss', level:50, energy:0,  medals:40, iron:471000, bread:471000, gold:602000, xp:1500000},
+  {label:'Boss Lv.55',  type:'Boss', level:55, energy:0,  medals:40, iron:495000, bread:495000, gold:632000, xp:1600000},
+  {label:'Boss Lv.60',  type:'Boss', level:60, energy:0,  medals:40, iron:519000, bread:519000, gold:662000, xp:1700000},
+  {label:'Boss Lv.65',  type:'Boss', level:65, energy:0,  medals:40, iron:542000, bread:542000, gold:692000, xp:1800000},
+  {label:'Boss Lv.70',  type:'Boss', level:70, energy:0,  medals:40, iron:566000, bread:566000, gold:722000, xp:1900000},
+  {label:'Invading Lv.10', type:'Invading', level:10, energy:10, medals:10, iron:268000, bread:268000, gold:268000, xp:263000},
+];
+
+/* ===== Build per-zombie cards ===== */
+const zlist = document.getElementById('zlist');
+Z.forEach((z,i)=>{
+  const canRally = z.type==='Boss';
+  const card = document.createElement('div');
+  card.className = 'zcard';
+  card.innerHTML = `
+    <div class="zhead">
+      <div><span class="tag">${z.type}</span> <strong>Lv.${z.level}</strong></div>
+      <div class="seg" style="min-width:250px">
+        <input id="m-${i}-p" name="m-${i}" type="radio" value="participant" checked>
+        <label for="m-${i}-p">Participant</label>
+        <input id="m-${i}-r" name="m-${i}" type="radio" value="rally" ${canRally?'':'disabled'}>
+        <label for="m-${i}-r" ${canRally?'':'style="opacity:.4;cursor:not-allowed"'}>Rally (Initiator) ×2</label>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <div class="muted">Quantity (# zombies)</div>
+        <input class="qty" data-i="${i}" type="number" inputmode="numeric" min="0" step="1" value="0" placeholder="e.g., 10">
+      </div>
+      <div><div class="muted">⚡ per unit</div><div id="uE-${i}">0</div></div>
+      <div><div class="muted">Gold / unit</div><div id="uG-${i}">0</div></div>
+      <div><div class="muted">Iron / unit</div><div id="uI-${i}">0</div></div>
+      <div><div class="muted">Bread / unit</div><div id="uB-${i}">0</div></div>
+      <div><div class="muted">Medals / unit</div><div id="uM-${i}">0</div></div>
+      <div><div class="muted">XP / unit</div><div id="uX-${i}">0</div></div>
+    </div>
+  `;
+  zlist.appendChild(card);
+  card.addEventListener('input', handleChange);
+  card.addEventListener('change', handleChange);
+});
+
+/* ===== Quick actions ===== */
+document.getElementById('allParticipant').addEventListener('click', ()=>{
+  Z.forEach((z,i)=>{ qs(`#m-${i}-p`).checked = true; });
+  refreshUnits(); recalc();
+});
+document.getElementById('allRally').addEventListener('click', ()=>{
+  Z.forEach((z,i)=>{ if(z.type==='Boss'){ qs(`#m-${i}-r`).checked = true; }});
+  refreshUnits(); recalc();
+});
+document.getElementById('clearAll').addEventListener('click', ()=>{
+  document.querySelectorAll('.qty').forEach(q=> q.value=0);
+  Z.forEach((_,i)=> qs(`#m-${i}-p`).checked = true);
+  refreshUnits(); recalc(); fillReset();
+});
+
+/* ===== Targets listeners ===== */
+['tGold','tIron','tBread','tMedals','tXP'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{ recalc(); fillReset(false); });
+});
+
+/* ===== Fill-to-target controls ===== */
+const fillerSelect = document.getElementById('fillerSelect');
+Z.forEach((z,i)=>{
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = z.label;
+  fillerSelect.appendChild(opt);
+});
+const defaultFillerIdx = Z.findIndex(z=>z.type==='Invading') || 14;
+fillerSelect.value = String(defaultFillerIdx);
+
+function syncFillerModeAvailability(){
+  const idx = +fillerSelect.value;
+  const canRally = Z[idx].type==='Boss';
+  const rallyInput = document.getElementById('f-r');
+  const rallyLabel = document.getElementById('fRallyLabel');
+  rallyInput.disabled = !canRally;
+  rallyLabel.style.opacity = canRally ? '1' : '.4';
+  rallyLabel.style.cursor  = canRally ? 'pointer' : 'not-allowed';
+  if(!canRally){ document.getElementById('f-p').checked = true; }
+  document.getElementById('fillerNote').textContent =
+    `Default: Invading Lv.10 (Participant). Currently selected: ${Z[idx].label}`;
+}
+fillerSelect.addEventListener('change', ()=>{ syncFillerModeAvailability(); fillReset(false); });
+['f-p','f-r'].forEach(id=> document.getElementById(id).addEventListener('change', ()=> fillReset(false)));
+
+document.getElementById('calcFill').addEventListener('click', calcFill);
+document.getElementById('applyFill').addEventListener('click', applyFill);
+
+/* ===== Init ===== */
+document.addEventListener('DOMContentLoaded', ()=>{ refreshUnits(); recalc(); syncFillerModeAvailability(); });
+function handleChange(e){ if(e.target.classList.contains('qty') || e.target.type==='radio'){ refreshUnits(); recalc(); fillReset(false); } }
+
+/* ===== Unit math ===== */
+function modeOf(i){ return qs(`input[name="m-${i}"]:checked`)?.value || 'participant'; }
+function perUnit(i, forceMode){
+  const z = Z[i];
+  const rally = (forceMode ?? modeOf(i)) === 'rally';
+  const mult = rally ? 2 : 1;
+  const energy = rally ? 20 : (z.energy||0);
+  return {
+    energy,
+    gold:   z.gold   * mult,
+    iron:   z.iron   * mult,
+    bread:  z.bread  * mult,
+    medals: z.medals * mult,
+    xp:     z.xp     * mult,
+  };
+}
+function refreshUnits(){
+  Z.forEach((_,i)=>{
+    const u = perUnit(i);
+    setText(`uE-${i}`, nf(u.energy));
+    setText(`uG-${i}`, fmt(u.gold));
+    setText(`uI-${i}`, fmt(u.iron));
+    setText(`uB-${i}`, fmt(u.bread));
+    setText(`uM-${i}`, fmt(u.medals));
+    setText(`uX-${i}`, fmt(u.xp));
+  });
+}
+
+/* ===== Breakdown & totals ===== */
+function recalc(){
+  const tbody = document.getElementById('detailBody');
+  tbody.innerHTML = '';
+  let G=0,I=0,B=0,M=0,X=0,E=0;
+
+  Z.forEach((z,i)=>{
+    const c = qty(i);
+    if(!c) return;
+    const u = perUnit(i);
+    const g=u.gold*c, ir=u.iron*c, br=u.bread*c, md=u.medals*c, xp=u.xp*c, en=u.energy*c;
+    G+=g; I+=ir; B+=br; M+=md; X+=xp; E+=en;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${z.label}</td>
+      <td>${modeOf(i)==='rally'?'Rally (Initiator) ×2':'Participant'}</td>
+      <td>${nf(c)}</td>
+      <td>${fmt(g)}</td><td>${fmt(ir)}</td><td>${fmt(br)}</td><td>${fmt(md)}</td><td>${fmt(xp)}</td><td>${nf(en)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // table totals
+  setText('dGold',  fmt(G)); setText('dIron',  fmt(I)); setText('dBread', fmt(B));
+  setText('dMedals',fmt(M)); setText('dXP',    fmt(X)); setText('dEnergy', nf(E));
+
+  // sticky footer totals
+  setText('sumGold',  fmt(G)); setText('sumIron',  fmt(I)); setText('sumBread', fmt(B));
+  setText('sumMedals',fmt(M)); setText('sumXP',    fmt(X)); setText('sumEnergy', nf(E));
+
+  compareTargets({gold:G,iron:I,bread:B,medals:M,xp:X});
+}
+
+function compareTargets(have){
+  const t = { gold:num('tGold'), iron:num('tIron'), bread:num('tBread'), medals:num('tMedals'), xp:num('tXP') };
+  const parts = [];
+  [['Gold','gold'],['Iron','iron'],['Bread','bread'],['Medals','medals'],['XP','xp']].forEach(([label,key])=>{
+    if(!t[key]) return;
+    const diff = have[key] - t[key];
+    parts.push(`${label}: ${diff>=0? 'over' : 'short'} ${fmt(Math.abs(diff))}`);
+  });
+  document.getElementById('cmpLine').textContent = parts.length? parts.join(' · ') : 'No target set';
+}
+
+/* ===== Fill-to-target logic ===== */
+let lastFill = null;
+function calcFill(){
+  const fillerIdx = +fillerSelect.value;
+  const fMode = (qs('input[name="fmode"]:checked')?.value)||'participant';
+  const u = perUnit(fillerIdx, fMode);
+
+  const T = { gold:num('tGold'), iron:num('tIron'), bread:num('tBread'), medals:num('tMedals'), xp:num('tXP') };
+  const keys = Object.keys(T).filter(k=>T[k]>0);
+  if(keys.length===0){ fillShow('Please enter at least one target.'); lastFill=null; return; }
+
+  const have = currentTotals();
+  const need = {}; keys.forEach(k=> need[k] = Math.max(0, T[k]-have[k]));
+  if(keys.every(k=> need[k]===0)){ fillShow('Targets already met with current plan.'); lastFill=null; return; }
+
+  const denom = k=> Math.max(1, u[k]||0);
+  let add=0; keys.forEach(k=> add = Math.max(add, Math.ceil(need[k]/denom(k))));
+  const addRes = { gold:u.gold*add, iron:u.iron*add, bread:u.bread*add, medals:u.medals*add, xp:u.xp*add, energy:u.energy*add };
+  const after = { gold:have.gold+addRes.gold, iron:have.iron+addRes.iron, bread:have.bread+addRes.bread, medals:have.medals+addRes.medals, xp:have.xp+addRes.xp };
+  const diff = {}; keys.forEach(k=> diff[k] = after[k]-T[k]);
+
+  lastFill = {fillerIdx, fMode, add, addRes};
+
+  const name = `${Z[fillerIdx].label}${fMode==='rally'?' (Rally ×2)':' (Participant)'}`;
+  const parts = keys.map(k=> `${nice(k)}: ${diff[k] >=0 ? 'over' : 'short'} ${fmt(Math.abs(diff[k]))}`).join(' · ');
+  fillShow(`Need <b>${nf(add)}</b> of <b>${name}</b>. Adds → Gold ${fmt(addRes.gold)}, Iron ${fmt(addRes.iron)}, Bread ${fmt(addRes.bread)}, Medals ${fmt(addRes.medals)}, XP ${fmt(addRes.xp)}, ⚡ ${nf(addRes.energy)}. (${parts})`);
+}
+
+function applyFill(){
+  if(!lastFill){ fillShow('Click “Calculate Needed” first.'); return; }
+  const {fillerIdx, add, fMode} = lastFill;
+  const el = document.querySelector(`.qty[data-i="${fillerIdx}"]`);
+  el.value = Number(el.value||0) + add;
+  (fMode==='rally' ? qs(`#m-${fillerIdx}-r`) : qs(`#m-${fillerIdx}-p`)).checked = true;
+
+  refreshUnits(); recalc();
+  fillShow(`Added <b>${nf(add)}</b> to ${Z[fillerIdx].label}.`);
+}
+
+function fillReset(clearMsg=true){
+  lastFill=null;
+  if(clearMsg) fillShow('');
+  syncFillerModeAvailability();
+}
+
+function fillShow(html){
+  const el = document.getElementById('fillResult');
+  el.innerHTML = html || '<span class="mini">Enter targets and click “Calculate Needed”.</span>';
+}
+
+/* ===== Current totals (without autofill) ===== */
+function currentTotals(){
+  let G=0,I=0,B=0,M=0,X=0;
+  Z.forEach((_,i)=>{
+    const c = qty(i); if(!c) return;
+    const u = perUnit(i);
+    G+=u.gold*c; I+=u.iron*c; B+=u.bread*c; M+=u.medals*c; X+=u.xp*c;
+  });
+  return {gold:G,iron:I,bread:B,medals:M,xp:X};
+}
+
+/* ===== Utilities ===== */
+function setText(id, val){ const el=document.getElementById(id); if(el) el.textContent = val; }
+function qty(i){ const el=document.querySelector(`.qty[data-i="${i}"]`); return Number(el?.value||0); }
+function num(id){ return Number(document.getElementById(id)?.value||0); }
+function fmt(n){ if(n==null) return '—'; const a=Math.abs(n);
+  if(a>=1e9) return (n/1e9).toFixed(1).replace(/\.0$/,'')+'B';
+  if(a>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+'M';
+  if(a>=1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+'K';
+  return String(n);
+}
+function nf(n){ return new Intl.NumberFormat('en-US').format(n); }
+function qs(s){ return document.querySelector(s); }
+function nice(k){ return ({gold:'Gold',iron:'Iron',bread:'Bread',medals:'Medals',xp:'XP'})[k]||k; }
+</script>
+</body>
+</html>
